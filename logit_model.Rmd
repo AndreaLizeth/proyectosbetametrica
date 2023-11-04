@@ -1,0 +1,89 @@
+install.packages("MASS")
+```{r}
+library(pROC)
+library(caret) #permite hacer validadciones y seleccionar pedazos de la bdd para entrenar y estudiar al modelo
+library(dplyr) #maneo de bdd
+library(MASS) #información complementaria
+
+data("Pima.tr")
+
+Pima.tr <- Pima.tr %>% 
+  mutate(type=if_else(type=="Yes",1,0))
+
+
+
+
+
+```
+#REALIZANDO SPLIT DE DATOS
+```{r}
+#Set a seed for reproducibility
+set.seed(123)
+#Use caret to split 
+index <- createDataPartition(Pima.tr$type, p=0.7,list = FALSE)
+training_set <- Pima.tr[index, ]
+test_set <- Pima.tr[-index, ]
+
+```
+
+#ESTIMADO EL MODELO
+```{r}
+
+logit_model= glm(type~., data = training_set, family = binomial)
+summary(logit_model)
+```
+#CALCULANDO MÉTRICAS: CURVA ROC
+```{r}
+predictions= predict(logit_model, newdata = test_set, type ="response")
+
+#Create a ROC object
+roc_curve = roc(test_set$type, predictions)
+
+#Plot the ROC curve
+plot(roc_curve, print.auc = TRUE, auc.polygon= TRUE, grid= TRUE, main="ROC curve")
+
+
+```
+
+#MÉTRICAS DE CONFUSIÓN
+```{r}
+#Calculate the confusion matrix
+
+# 0.05 bajar la probabilidad para que el fenómeno en estudio sea mejor clasificado
+conf_matrix= confusionMatrix(as.factor(if_else(predictions>0.50,1,0)),
+                             as.factor(test_set$type),positive = "1", mode = "everything")
+
+#Display the confusion matrix
+conf_matrix
+
+```
+
+#COMPARANDO RESULTADOS TRAIN, TEST, A TRAVÉS DE LA CURVA ROC
+```{r}
+library(pROC)
+
+#Predict probabilidades en los conjuntos de entrenamiento y test
+train_predictions= predict(logit_model, newdata = training_set, type = "response")
+test_predictions= predict(logit_model, newdata = test_set, type = "response")
+
+#Crear objetos ROC para entrenamiento y prueba
+roc_train=roc(training_set$type, train_predictions)
+roc_test=roc(test_set$type, test_predictions)
+
+#Plot de las curvas ROC
+plot(roc_train, print.auc=TRUE, ayc.polygon=TRUE, grid=TRUE, main="ROC curve - Training Set")
+plot(roc_test, print.auc=TRUE, ayc.polygon=TRUE, grid=TRUE, main="ROC curve - Test Set")
+
+#Plot de las curvas ROC en el mismo gráfico
+plot(roc_train, col="blue", print.auc=TRUE, auc.polygon=TRUE, grid=TRUE, main="ROC curve - Trainingvs. Test")
+lines(roc_test, col="red")
+legend("bottomright", legend=c("Training Set","Test Set"), col=c("blue","red"),lty=1)
+
+
+
+
+  
+  
+```
+
+

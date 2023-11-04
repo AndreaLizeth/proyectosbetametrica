@@ -1,0 +1,183 @@
+#cargando librerías
+```{r}
+#control + a, para seleccionar todo
+#control +alt +i para abrir nuevo chunck
+```
+install.packages("lmtest")
+
+
+library(openxlsx)
+library(dplyr)
+library(fdth)
+library(ggplot2)
+library(gridExtra)
+library(grid)
+library(stargazer)
+
+
+#------cargar BDD------
+
+```{r}
+
+#openxlsx
+datos <- read.xlsx("D:/Escritorio/Cdatos/empresas_HEBM18.xlsx", na.strings = T)
+head(datos)
+str(datos) #de qué se trata la BDD
+names(datos)
+```
+#MANEJO DE BASES DE DATOS
+```{r}
+#pipe %>% CTRL + SHIFT + M
+#select
+#asigno <- alt + guión medio
+#shortcut %>% ctrl +shift + m 
+#filter
+#$ llama a la variable
+datos <-  datos %>% filter(complete.cases(.)) #filtra la bdd para que quede con datos completos
+nuevadata <- datos %>% 
+  select(NOMBRE, REGIÓN,PROVINCIA,CIUDAD,INGRESOS,CANT..EMPLEADOS,UTILIDAD) %>% 
+  filter(INGRESOS <=100000 & INGRESOS > 10000)
+
+#CAMBIANDO DE ESCALA
+
+nuevadata$INGRESOS <- nuevadata$INGRESOS/1000
+nuevadata$UTILIDAD <- nuevadata$UTILIDAD/1000
+
+#INSPECCIONANDO LA BASE DE DATOS
+
+#Estadísticos descriptivos
+sum(nuevadata$INGRESOS)
+mean(nuevadata$INGRESOS)
+max(nuevadata$INGRESOS)
+summary(nuevadata$INGRESOS) # saca estadísticas como minimo, cuartil, media, mediana, etc.
+
+summary(nuevadata) # estadístocas para todo el dataframe.
+
+```
+```{r}
+#FUNCIONES PODEROSAS DE dplyr
+#group_by
+#summarise
+#arrange
+
+nuevadata2 <- nuevadata %>% 
+  group_by(REGIÓN) %>% 
+  summarise(PROM_INGRESOS=mean(INGRESOS)) %>% 
+  arrange(desc(PROM_INGRESOS)) # también funciona con -PROM_INGRESOS
+  
+
+nuevadata2
+
+
+
+nuevadata2 <- nuevadata %>% 
+  group_by(REGIÓN, CIUDAD) %>% 
+  summarise(PROM_INGRESOS=mean(INGRESOS)) %>% 
+  arrange(REGIÓN,-PROM_INGRESOS) # también funciona con -PROM_INGRESOS
+  
+nuevadata2
+
+```
+```{r}
+#SUMMARISE_EACH PUEDE REALIZAR DIFERENTES FUNCIONES 
+nuevadata2 <- nuevadata %>% 
+  group_by(REGIÓN) %>% 
+  summarise_each(funs(media=mean(.), 
+                      minimo=min(.),
+                      maximo=max(.),
+                      mediana=median(.),
+                      contar=n()
+                      ), INGRESOS)
+
+nuevadata2
+
+
+
+
+
+nuevadata2 <- nuevadata %>% 
+  group_by(REGIÓN) %>% 
+  summarise_each(funs(media=mean(.), 
+                      minimo=min(.),
+                      maximo=max(.),
+                      mediana=median(.),
+                      contar=n(),
+                      q20=quantile(.,probs = 0.20),
+                      q40=quantile(.,probs = 0.40),
+                      q50=quantile(.,probs = 0.50),
+                      
+                      ), INGRESOS)
+
+nuevadata2
+
+
+#TABLA DE FRECUENCIAS
+
+summary(nuevadata$INGRESOS)
+tabla_frecuencia <- fdt(nuevadata$INGRESOS,start = 10,end = 100,h=10)
+tabla_frecuencia1 <- data.frame(tabla_frecuencia$table)
+tabla_frecuencia1$rango <- seq(20,100,10)
+tabla_frecuencia$cf <-  round(tabla_frecuencia1$cf...,0)
+
+```
+#GRÁFICOS usando ggplot2
+```{r}
+g1 <- ggplot(data=tabla_frecuencia1, 
+       aes(x=seq(10,90,10),
+           y=f))+
+  geom_bar(stat = "identity", fill="blue")+
+  geom_text(aes(label=f), position = "identity",vjust=0,size=4)+
+  scale_x_continuous(breaks = tabla_frecuencia1$rango)+
+  theme(axis.text.x = element_text(size = 12, angle = 90))+
+  labs(title = "Frecuencia absoluta de los ingresos anuales", subtitle = "Pequeñas empresas del Ecuador")+
+  xlab("Ingresos por rango en miles")+
+  ylab("Número de empresas")
+
+
+  
+
+
+g2 <- ggplot(data=tabla_frecuencia1, 
+       aes(x=seq(10,90,10),
+           y=cf...))+
+  geom_bar(stat = "identity", fill="blue")+
+  geom_text(aes(label=cf...), position = "identity",vjust=0,size=2)+
+  geom_line()+geom_point()+
+  theme(axis.text.x = element_text(size = 12, angle = 90))+
+  labs(title = "Frecuencia relativa acumulada de los ingresos anuales", subtitle = "Pequeñas empresas del Ecuador")+
+  xlab("Ingresos por rango en miles")+
+  ylab("Distribución acumilada %")
+
+#grid.Extra
+#grid
+
+
+
+grid.arrange(g1,g2, ncol=2,
+             top="Distribución de ingresos anuales",
+             bottom=textGrob("Fuente:SUPERCIAS\nElaboración @Andrea Quishpe"))
+
+
+```
+#MODELO DE REGRESIÓN MÚLTIPLE -- esto conn el archivo ventas.xlsx no disponible
+```{r}
+setwd("D:/Escritorio/Cdatos/")
+datos <- openxlsx::read.xlsx("D:/Escritorio/Cdatos/empresas_HEBM18.xlsx")
+modelo <- lm(PATRIMONIO~.,data=datos)
+summary(modelo)
+
+
+
+stargazer(modelo, title = "Modelo de regresión múltiple", type = "text")
+dw(modelo)
+bptest(modelo)
+
+#QUEMAR EL MOTOR DE CÁLCULO
+#MOTOR DE CÁLCULO -> algoritmo
+
+nuevadata <- head(datos)
+predict(modelo, nuevadata)
+
+
+```
+

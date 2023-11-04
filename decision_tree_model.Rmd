@@ -1,0 +1,33 @@
+install.packages("rpart")
+
+#Cargar las bibliotecas
+library(rpart)
+library(rpart.plot) # grafica el área 
+library(pROC)
+
+
+#CREAR EL ARBOL DE DECISION
+```{r}
+#Crear el modelo del árbol de decisión
+tree_model <- rpart(type~.,data = training_set, method = "class")
+```
+#GRAFICANDO EL ÁRBOL
+```{r}
+#Graficar el árbol de decisión
+rpart.plot(tree_model, fallen.leaves = TRUE, type = 4, extra = 1)
+
+cuentacasos <- function(x, labs, digits, varlen)
+{paste(labs,"\n\nn = ",x$frame$n)}
+
+rpart.plot(tree_model,
+           main="Árbol de Clasificación",
+           #shadow.col = "lightgreen",
+           box.palette = "Grays",
+           cex=0.8, tweak=0.8,
+           extra=104,type = 2,
+           under = F, fallen.leaves = T, nn=T, node.fun=cuentacasos
+           
+           )
+
+```
+
